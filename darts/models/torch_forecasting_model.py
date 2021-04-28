@@ -25,9 +25,9 @@ from ..utils.data.simple_inference_dataset import SimpleInferenceDataset
 from ..logging import raise_if_not, get_logger, raise_log, raise_if
 from .forecasting_model import GlobalForecastingModel
 
-CHECKPOINTS_FOLDER = os.path.join('.darts', 'checkpoints')
-RUNS_FOLDER = os.path.join('.darts', 'runs')
-UNTRAINED_MODELS_FOLDER = os.path.join('.darts', 'untrained_models')
+CHECKPOINTS_FOLDER = os.path.join(".darts", "checkpoints")
+RUNS_FOLDER = os.path.join(".darts", "runs")
+UNTRAINED_MODELS_FOLDER = os.path.join(".darts", "untrained_models")
 
 logger = get_logger(__name__)
 
@@ -45,7 +45,9 @@ def _get_runs_folder(work_dir, model_name):
 
 
 class TimeSeriesTorchDataset(Dataset):
-    def __init__(self, ts_dataset: Union[TimeSeriesInferenceDataset, TrainingDataset], device):
+    def __init__(
+        self, ts_dataset: Union[TimeSeriesInferenceDataset, TrainingDataset], device
+    ):
         """
         Wraps around `TimeSeriesDataset`, in order to provide translation
         from `TimeSeries` to torch tensors and stack target series with covariates when needed.
@@ -69,7 +71,9 @@ class TimeSeriesTorchDataset(Dataset):
     def __len__(self):
         return len(self.ts_dataset)
 
-    def __getitem__(self, idx: int) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    def __getitem__(
+        self, idx: int
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Cast the content of the dataset to torch tensors
         """
@@ -78,36 +82,45 @@ class TimeSeriesTorchDataset(Dataset):
         if len(item) == 2:
             # the dataset contains (input_target, input_covariate) only
             input_tgt = torch.from_numpy(item[0]).float()
-            input_cov = torch.from_numpy(item[1]).float() if item[1] is not None else None
+            input_cov = (
+                torch.from_numpy(item[1]).float() if item[1] is not None else None
+            )
             return self._cat_with_optional(input_tgt, input_cov)
 
         elif len(item) == 3:
             # the dataset contains (input_target, output_target, input_covariate)
-            input_tgt, output_tgt = torch.from_numpy(item[0]).float(), torch.from_numpy(item[1]).float()
-            input_cov = torch.from_numpy(item[2]).float() if item[2] is not None else None
+            input_tgt, output_tgt = (
+                torch.from_numpy(item[0]).float(),
+                torch.from_numpy(item[1]).float(),
+            )
+            input_cov = (
+                torch.from_numpy(item[2]).float() if item[2] is not None else None
+            )
             return self._cat_with_optional(input_tgt, input_cov), output_tgt
 
         else:
-            raise ValueError('The dataset has to contain tuples of size 2 or 4')
+            raise ValueError("The dataset has to contain tuples of size 2 or 4")
 
 
 class TorchForecastingModel(GlobalForecastingModel, ABC):
     # TODO: add is_stochastic & reset methods
-    def __init__(self,
-                 input_chunk_length: int,
-                 output_chunk_length: int,
-                 batch_size: int = 32,
-                 n_epochs: int = 100,
-                 optimizer_cls: torch.optim.Optimizer = torch.optim.Adam,
-                 optimizer_kwargs: Optional[Dict] = None,
-                 lr_scheduler_cls: torch.optim.lr_scheduler._LRScheduler = None,
-                 lr_scheduler_kwargs: Optional[Dict] = None,
-                 loss_fn: nn.modules.loss._Loss = nn.MSELoss(),
-                 model_name: str = "torch_model_run",  # TODO: uid
-                 work_dir: str = os.getcwd(),
-                 log_tensorboard: bool = False,
-                 nr_epochs_val_period: int = 10,
-                 torch_device_str: Optional[str] = None):
+    def __init__(
+        self,
+        input_chunk_length: int,
+        output_chunk_length: int,
+        batch_size: int = 32,
+        n_epochs: int = 100,
+        optimizer_cls: torch.optim.Optimizer = torch.optim.Adam,
+        optimizer_kwargs: Optional[Dict] = None,
+        lr_scheduler_cls: torch.optim.lr_scheduler._LRScheduler = None,
+        lr_scheduler_kwargs: Optional[Dict] = None,
+        loss_fn: nn.modules.loss._Loss = nn.MSELoss(),
+        model_name: str = "torch_model_run",  # TODO: uid
+        work_dir: str = os.getcwd(),
+        log_tensorboard: bool = False,
+        nr_epochs_val_period: int = 10,
+        torch_device_str: Optional[str] = None,
+    ):
 
         """ Pytorch-based Forecasting Model.
 
@@ -175,7 +188,9 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        self.from_scratch = True  # do we train the model from scratch  # TODO clean this
+        self.from_scratch = (
+            True  # do we train the model from scratch  # TODO clean this
+        )
 
         # Define the loss function
         self.criterion = loss_fn
@@ -187,7 +202,9 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         self.optimizer_cls = optimizer_cls
         self.optimizer_kwargs = dict() if optimizer_kwargs is None else optimizer_kwargs
         self.lr_scheduler_cls = lr_scheduler_cls
-        self.lr_scheduler_kwargs = dict() if lr_scheduler_kwargs is None else lr_scheduler_kwargs
+        self.lr_scheduler_kwargs = (
+            dict() if lr_scheduler_kwargs is None else lr_scheduler_kwargs
+        )
 
     def _init_model(self) -> None:
         """
@@ -204,27 +221,35 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             try:
                 return cls(**kws)
             except (TypeError, ValueError) as e:
-                raise_log(ValueError('Error when building the optimizer or learning rate scheduler;'
-                                     'please check the provided class and arguments'
-                                     '\nclass: {}'
-                                     '\narguments (kwargs): {}'
-                                     '\nerror:\n{}'.format(cls, kws, e)),
-                          logger)
+                raise_log(
+                    ValueError(
+                        "Error when building the optimizer or learning rate scheduler;"
+                        "please check the provided class and arguments"
+                        "\nclass: {}"
+                        "\narguments (kwargs): {}"
+                        "\nerror:\n{}".format(cls, kws, e)
+                    ),
+                    logger,
+                )
 
         # Create the optimizer and (optionally) the learning rate scheduler
         # we have to create copies because we cannot save model.parameters into object state (not serializable)
         optimizer_kws = {k: v for k, v in self.optimizer_kwargs.items()}
-        optimizer_kws['params'] = self.model.parameters()
+        optimizer_kws["params"] = self.model.parameters()
         self.optimizer = _create_from_cls_and_kwargs(self.optimizer_cls, optimizer_kws)
 
         if self.lr_scheduler_cls is not None:
             lr_sched_kws = {k: v for k, v in self.lr_scheduler_kwargs.items()}
-            lr_sched_kws['optimizer'] = self.optimizer
-            self.lr_scheduler = _create_from_cls_and_kwargs(self.lr_scheduler_cls, lr_sched_kws)
+            lr_sched_kws["optimizer"] = self.optimizer
+            self.lr_scheduler = _create_from_cls_and_kwargs(
+                self.lr_scheduler_cls, lr_sched_kws
+            )
         else:
             self.lr_scheduler = None  # We won't use a LR scheduler
 
-        self._save_untrained_model(_get_untrained_models_folder(self.work_dir, self.model_name))
+        self._save_untrained_model(
+            _get_untrained_models_folder(self.work_dir, self.model_name)
+        )
 
     @abstractmethod
     def _create_model(self, input_dim: int, output_dim: int) -> torch.nn.Module:
@@ -234,21 +259,25 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         """
         pass
 
-    def _build_train_dataset(self,
-                             target: Sequence[TimeSeries],
-                             covariates: Optional[Sequence[TimeSeries]]) -> TrainingDataset:
-        return SequentialDataset(target_series=target,
-                                 covariates=covariates,
-                                 input_chunk_length=self.input_chunk_length,
-                                 output_chunk_length=self.output_chunk_length)
+    def _build_train_dataset(
+        self, target: Sequence[TimeSeries], covariates: Optional[Sequence[TimeSeries]]
+    ) -> TrainingDataset:
+        return SequentialDataset(
+            target_series=target,
+            covariates=covariates,
+            input_chunk_length=self.input_chunk_length,
+            output_chunk_length=self.output_chunk_length,
+        )
 
     @random_method
-    def fit(self,
-            series: Union[TimeSeries, Sequence[TimeSeries]],
-            covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
-            val_series: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
-            val_covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
-            verbose: bool = False) -> None:
+    def fit(
+        self,
+        series: Union[TimeSeries, Sequence[TimeSeries]],
+        covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
+        val_series: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
+        val_covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
+        verbose: bool = False,
+    ) -> None:
         """
         The fit method for torch models.
         It wraps around `fit_from_dataset()`.
@@ -280,65 +309,99 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
         # Check that dimensions of train and val set match; on first series only
         if val_series is not None:
-            train_set_dim = (series[0].width + (0 if covariates is None else covariates[0].width))
-            val_set_dim = (val_series[0].width + (0 if val_covariates is None else val_covariates[0].width))
-            raise_if_not(train_set_dim == val_set_dim, 'The dimensions of the series in the training set '
-                                                       'and the validation set do not match. {} != {}'.format(
-                                                        train_set_dim, val_set_dim))
+            train_set_dim = series[0].width + (
+                0 if covariates is None else covariates[0].width
+            )
+            val_set_dim = val_series[0].width + (
+                0 if val_covariates is None else val_covariates[0].width
+            )
+            raise_if_not(
+                train_set_dim == val_set_dim,
+                "The dimensions of the series in the training set "
+                "and the validation set do not match. {} != {}".format(
+                    train_set_dim, val_set_dim
+                ),
+            )
 
         train_dataset = self._build_train_dataset(series, covariates)
-        val_dataset = self._build_train_dataset(val_series, val_covariates) if val_series is not None else None
+        val_dataset = (
+            self._build_train_dataset(val_series, val_covariates)
+            if val_series is not None
+            else None
+        )
 
-        logger.info('Train dataset contains {} samples.'.format(len(train_dataset)))
+        logger.info("Train dataset contains {} samples.".format(len(train_dataset)))
 
         self.fit_from_dataset(train_dataset, val_dataset, verbose)
 
     @random_method
-    def fit_from_dataset(self,
-                         train_dataset: TrainingDataset,
-                         val_dataset: Optional[TrainingDataset] = None,
-                         verbose: bool = False) -> None:
-        raise_if(len(train_dataset) == 0,
-                 'The provided training time series dataset is too short for obtaining even one training point.',
-                 logger)
-        raise_if(val_dataset is not None and len(val_dataset) == 0,
-                 'The provided validation time series dataset is too short for obtaining even one training point.',
-                 logger)
+    def fit_from_dataset(
+        self,
+        train_dataset: TrainingDataset,
+        val_dataset: Optional[TrainingDataset] = None,
+        verbose: bool = False,
+    ) -> None:
+        raise_if(
+            len(train_dataset) == 0,
+            "The provided training time series dataset is too short for obtaining even one training point.",
+            logger,
+        )
+        raise_if(
+            val_dataset is not None and len(val_dataset) == 0,
+            "The provided validation time series dataset is too short for obtaining even one training point.",
+            logger,
+        )
 
         if self.from_scratch:
-            shutil.rmtree(_get_checkpoint_folder(self.work_dir, self.model_name), ignore_errors=True)
+            shutil.rmtree(
+                _get_checkpoint_folder(self.work_dir, self.model_name),
+                ignore_errors=True,
+            )
 
         torch_train_dataset = TimeSeriesTorchDataset(train_dataset, self.device)
         torch_val_dataset = TimeSeriesTorchDataset(val_dataset, self.device)
 
-        input_dim, output_dim = torch_train_dataset[0][0].shape[1], torch_train_dataset[0][1].shape[1]
+        input_dim, output_dim = (
+            torch_train_dataset[0][0].shape[1],
+            torch_train_dataset[0][1].shape[1],
+        )
         if self.model is None:
             # Build model, based on the dimensions of the first series in the train set.
             self.input_dim, self.output_dim = input_dim, output_dim
             self._init_model()
         else:
             # Check existing model has input/output dim matching what's provided in the training set.
-            raise_if_not(input_dim == self.input_dim and output_dim == self.output_dim,
-                         'The dimensionality of the series in the training set do not match the dimensionality'
-                         'of the series the model has previously been trained on. '
-                         'Model input/output dimensions = {}/{}, provided input/ouptput dimensions = {}/{}'.format(
-                             self.input_dim, self.output_dim, input_dim, output_dim
-                         ))
+            raise_if_not(
+                input_dim == self.input_dim and output_dim == self.output_dim,
+                "The dimensionality of the series in the training set do not match the dimensionality"
+                "of the series the model has previously been trained on. "
+                "Model input/output dimensions = {}/{}, provided input/ouptput dimensions = {}/{}".format(
+                    self.input_dim, self.output_dim, input_dim, output_dim
+                ),
+            )
 
-        train_loader = DataLoader(torch_train_dataset,
-                                  batch_size=self.batch_size,
-                                  shuffle=True,
-                                  num_workers=0,
-                                  pin_memory=True,
-                                  drop_last=True)
+        train_loader = DataLoader(
+            torch_train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=True,
+            drop_last=True,
+        )
 
         # Prepare validation data
-        val_loader = None if val_dataset is None else DataLoader(torch_val_dataset,
-                                                                 batch_size=self.batch_size,
-                                                                 shuffle=False,
-                                                                 num_workers=0,
-                                                                 pin_memory=True,
-                                                                 drop_last=False)
+        val_loader = (
+            None
+            if val_dataset is None
+            else DataLoader(
+                torch_val_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=0,
+                pin_memory=True,
+                drop_last=False,
+            )
+        )
 
         # Prepare tensorboard writer
         tb_writer = self._prepare_tensorboard_writer()
@@ -351,11 +414,12 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             tb_writer.flush()
             tb_writer.close()
 
-    def predict(self,
-                n: int,
-                series: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
-                covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None
-                ) -> Union[TimeSeries, Sequence[TimeSeries]]:
+    def predict(
+        self,
+        n: int,
+        series: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
+        covariates: Optional[Union[TimeSeries, Sequence[TimeSeries]]] = None,
+    ) -> Union[TimeSeries, Sequence[TimeSeries]]:
         """
         Predicts values for a certain number of time steps after the end of the training series,
         or after the end of the specified `series`.
@@ -386,9 +450,11 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         """
         super().predict(n, series, covariates)
 
-        raise_if(covariates is not None and n > self.output_chunk_length,
-                 'The horizon `n` must be smaller or equal to the model output length when covariates are used. '
-                 'n: {}, output_chunk_length: {}'.format(n, self.output_chunk_length))
+        raise_if(
+            covariates is not None and n > self.output_chunk_length,
+            "The horizon `n` must be smaller or equal to the model output length when covariates are used. "
+            "n: {}, output_chunk_length: {}".format(n, self.output_chunk_length),
+        )
 
         if series is None and covariates is None:
             series = self.training_series
@@ -404,34 +470,41 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         predictions = self.predict_from_dataset(n, dataset)
         return predictions[0] if called_with_single_series else predictions
 
-    def predict_from_dataset(self,
-                             n: int,
-                             input_series_dataset: TimeSeriesInferenceDataset
-                             ) -> Sequence[TimeSeries]:
+    def predict_from_dataset(
+        self, n: int, input_series_dataset: TimeSeriesInferenceDataset
+    ) -> Sequence[TimeSeries]:
         self.model.eval()
 
         # check that the input sizes match
         sample = input_series_dataset[0]
         in_dim = sum(map(lambda ts: (ts.width if ts is not None else 0), sample))
-        raise_if_not(in_dim == self.input_dim,
-                     'The dimensionality of the series provided for prediction does not match the dimensionality'
-                     'of the series this model has been trained on. Provided input dim = {}, '
-                     'model input dim = {}'.format(in_dim, self.input_dim))
+        raise_if_not(
+            in_dim == self.input_dim,
+            "The dimensionality of the series provided for prediction does not match the dimensionality"
+            "of the series this model has been trained on. Provided input dim = {}, "
+            "model input dim = {}".format(in_dim, self.input_dim),
+        )
 
         # TODO use a torch Dataset and DataLoader for parallel loading and batching
         # TODO also currently we assume all forecasts fit in memory
         ts_forecasts = []
         for target_series, covariate_series in input_series_dataset:
-            raise_if_not(len(target_series) >= self.input_chunk_length,
-                         'All input series must have length >= `input_chunk_length` ({}).'.format(self.input_chunk_length))
+            raise_if_not(
+                len(target_series) >= self.input_chunk_length,
+                "All input series must have length >= `input_chunk_length` ({}).".format(
+                    self.input_chunk_length
+                ),
+            )
 
             # TODO: here we could be smart and handle cases where target and covariates do not have same time axis.
             # TODO: e.g. by taking their latest common timestamp.
 
-            in_tsr = target_series.values(copy=False)[-self.input_chunk_length:]
+            in_tsr = target_series.values(copy=False)[-self.input_chunk_length :]
             in_tsr = torch.from_numpy(in_tsr).float().to(self.device)
             if covariate_series is not None:
-                in_cov_tsr = covariate_series.values(copy=False)[-self.input_chunk_length:]
+                in_cov_tsr = covariate_series.values(copy=False)[
+                    -self.input_chunk_length :
+                ]
                 in_cov_tsr = torch.from_numpy(in_cov_tsr).float().to(self.device)
                 in_tsr = torch.cat([in_tsr, in_cov_tsr], dim=1)
             in_tsr = in_tsr.view(1, self.input_chunk_length, -1)
@@ -440,8 +513,11 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
             # translate to numpy
             out_sequence = out_sequence.cpu().detach().numpy()
-            ts_forecasts.append(self._build_forecast_series(out_sequence.reshape(n, -1),
-                                                            input_series=target_series))
+            ts_forecasts.append(
+                self._build_forecast_series(
+                    out_sequence.reshape(n, -1), input_series=target_series
+                )
+            )
         return ts_forecasts
 
     def _produce_prediction(self, in_sequence: torch.Tensor, n: int) -> torch.Tensor:
@@ -450,7 +526,9 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         # TODO: make it work for RNNs in non- seq2seq fashion (one input at a time keeping state)
 
         prediction = []  # (length, width)
-        out = self.model(in_sequence)[:, self.first_prediction_index:, :]  # (1, output_chunk_length, width)
+        out = self.model(in_sequence)[
+            :, self.first_prediction_index :, :
+        ]  # (1, output_chunk_length, width)
         prediction.append(out[0, :, :])
         while sum(map(lambda t: len(t), prediction)) < n:
             roll_size = min(self.output_chunk_length, self.input_chunk_length)
@@ -458,7 +536,7 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             in_sequence[:, -roll_size:, :] = out[:, :roll_size, :]
 
             # take only last part of the output sequence where needed
-            out = self.model(in_sequence)[:, self.first_prediction_index:, :]
+            out = self.model(in_sequence)[:, self.first_prediction_index :, :]
 
             prediction.append(out[0, :, :])
 
@@ -467,7 +545,9 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         return prediction
 
     def untrained_model(self):
-        return self._load_untrained_model(_get_untrained_models_folder(self.work_dir, self.model_name))
+        return self._load_untrained_model(
+            _get_untrained_models_folder(self.work_dir, self.model_name)
+        )
 
     @property
     def first_prediction_index(self) -> int:
@@ -476,11 +556,13 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         """
         return 0
 
-    def _train(self,
-               train_loader: DataLoader,
-               val_loader: Optional[DataLoader],
-               tb_writer: Optional[SummaryWriter],
-               verbose: bool) -> None:
+    def _train(
+        self,
+        train_loader: DataLoader,
+        val_loader: Optional[DataLoader],
+        tb_writer: Optional[SummaryWriter],
+        verbose: bool,
+    ) -> None:
         """
         Performs the actual training
         :param train_loader: the training data loader feeding the training data and targets
@@ -509,27 +591,47 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
             if tb_writer is not None:
                 for name, param in self.model.named_parameters():
-                    tb_writer.add_histogram(name + '/gradients', param.grad.data.cpu().numpy(), epoch)
-                tb_writer.add_scalar("training/loss", total_loss / (batch_idx + 1), epoch)
-                tb_writer.add_scalar("training/loss_total", total_loss / (batch_idx + 1), epoch)
-                tb_writer.add_scalar("training/learning_rate", self._get_learning_rate(), epoch)
+                    tb_writer.add_histogram(
+                        name + "/gradients", param.grad.data.cpu().numpy(), epoch
+                    )
+                tb_writer.add_scalar(
+                    "training/loss", total_loss / (batch_idx + 1), epoch
+                )
+                tb_writer.add_scalar(
+                    "training/loss_total", total_loss / (batch_idx + 1), epoch
+                )
+                tb_writer.add_scalar(
+                    "training/learning_rate", self._get_learning_rate(), epoch
+                )
 
-            self._save_model(False, _get_checkpoint_folder(self.work_dir, self.model_name), epoch)
+            self._save_model(
+                False, _get_checkpoint_folder(self.work_dir, self.model_name), epoch
+            )
 
             if epoch % self.nr_epochs_val_period == 0:
                 training_loss = total_loss / len(train_loader)
                 if val_loader is not None:
                     validation_loss = self._evaluate_validation_loss(val_loader)
                     if tb_writer is not None:
-                        tb_writer.add_scalar("validation/loss_total", validation_loss, epoch)
+                        tb_writer.add_scalar(
+                            "validation/loss_total", validation_loss, epoch
+                        )
 
                     if validation_loss < best_loss:
                         best_loss = validation_loss
-                        self._save_model(True, _get_checkpoint_folder(self.work_dir, self.model_name), epoch)
+                        self._save_model(
+                            True,
+                            _get_checkpoint_folder(self.work_dir, self.model_name),
+                            epoch,
+                        )
 
                     if verbose:
-                        print("Training loss: {:.4f}, validation loss: {:.4f}, best val loss: {:.4f}".
-                              format(training_loss, validation_loss, best_loss), end="\r")
+                        print(
+                            "Training loss: {:.4f}, validation loss: {:.4f}, best val loss: {:.4f}".format(
+                                training_loss, validation_loss, best_loss
+                            ),
+                            end="\r",
+                        )
                 elif verbose:
                     print("Training loss: {:.4f}".format(training_loss), end="\r")
 
@@ -546,10 +648,7 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         validation_loss = total_loss / (batch_idx + 1)
         return validation_loss
 
-    def _save_model(self,
-                    is_best: bool,
-                    folder: str,
-                    epoch: int):
+    def _save_model(self, is_best: bool, folder: str, epoch: int):
         """
         Saves the whole torch model object to a file
 
@@ -560,12 +659,12 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         """
 
         checklist = glob(os.path.join(folder, "checkpoint_*"))
-        checklist = sorted(checklist, key=lambda x: float(re.findall(r'(\d+)', x)[-1]))
-        filename = 'checkpoint_{0}.pth.tar'.format(epoch)
+        checklist = sorted(checklist, key=lambda x: float(re.findall(r"(\d+)", x)[-1]))
+        filename = "checkpoint_{0}.pth.tar".format(epoch)
         os.makedirs(folder, exist_ok=True)
         filename = os.path.join(folder, filename)
 
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             torch.save(self, f)
 
         if len(checklist) >= 5:
@@ -573,10 +672,12 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             for chkpt in checklist[:-4]:
                 os.remove(chkpt)
         if is_best:
-            best_name = os.path.join(folder, 'model_best_{0}.pth.tar'.format(epoch))
+            best_name = os.path.join(folder, "model_best_{0}.pth.tar".format(epoch))
             shutil.copyfile(filename, best_name)
             checklist = glob(os.path.join(folder, "model_best_*"))
-            checklist = sorted(checklist, key=lambda x: float(re.findall(r'(\d+)', x)[-1]))
+            checklist = sorted(
+                checklist, key=lambda x: float(re.findall(r"(\d+)", x)[-1])
+            )
             if len(checklist) >= 2:
                 # remove older files
                 for chkpt in checklist[:-1]:
@@ -584,15 +685,15 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
     def _save_untrained_model(self, folder):
         os.makedirs(folder, exist_ok=True)
-        filename = os.path.join(folder, 'model.pth.tar')
+        filename = os.path.join(folder, "model.pth.tar")
 
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             torch.save(self, f)
 
     def _load_untrained_model(self, folder):
-        filename = os.path.join(folder, 'model.pth.tar')
+        filename = os.path.join(folder, "model.pth.tar")
 
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             model = torch.load(f)
         return model
 
@@ -602,7 +703,9 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             if self.from_scratch:
                 shutil.rmtree(runs_folder, ignore_errors=True)
                 tb_writer = SummaryWriter(runs_folder)
-                dummy_input = torch.empty(self.batch_size, self.input_chunk_length, self.input_dim).to(self.device)
+                dummy_input = torch.empty(
+                    self.batch_size, self.input_chunk_length, self.input_dim
+                ).to(self.device)
                 tb_writer.add_graph(self.model, dummy_input)
             else:
                 tb_writer = SummaryWriter(runs_folder, purge_step=self.start_epoch)
@@ -611,10 +714,12 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
         return tb_writer
 
     @staticmethod
-    def load_from_checkpoint(model_name: str,
-                             work_dir: str = os.getcwd(),
-                             filename: str = None,
-                             best: bool = True) -> 'TorchForecastingModel':
+    def load_from_checkpoint(
+        model_name: str,
+        work_dir: str = os.getcwd(),
+        filename: str = None,
+        best: bool = True,
+    ) -> "TorchForecastingModel":
         """
         Load the model from the given checkpoint.
         if file is not given, will try to restore the most recent checkpoint.
@@ -640,19 +745,32 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
         # if filename is none, find most recent file in savepath that is a checkpoint
         if filename is None:
-            path = os.path.join(checkpoint_dir, "model_best_*" if best else "checkpoint_*")
+            path = os.path.join(
+                checkpoint_dir, "model_best_*" if best else "checkpoint_*"
+            )
             checklist = glob(path)
             if len(checklist) == 0:
-                raise_log(FileNotFoundError('There is no file matching prefix {} in {}'.format(
-                          "model_best_*" if best else "checkpoint_*", checkpoint_dir)),
-                          logger)
-            filename = max(checklist, key=os.path.getctime)  # latest file TODO: check case where no files match
+                raise_log(
+                    FileNotFoundError(
+                        "There is no file matching prefix {} in {}".format(
+                            "model_best_*" if best else "checkpoint_*", checkpoint_dir
+                        )
+                    ),
+                    logger,
+                )
+            filename = max(
+                checklist, key=os.path.getctime
+            )  # latest file TODO: check case where no files match
             filename = os.path.basename(filename)
 
         full_fname = os.path.join(checkpoint_dir, filename)
-        print('loading {}'.format(filename))
-        with open(full_fname, 'rb') as f:
-            model = torch.load(f)
+        print("loading {}".format(filename))
+        with open(full_fname, "rb") as f:
+            # handle the case that model was trained on CUDA but loaded on CPU
+            if not torch.cuda.is_available():
+                model = torch.load(f, map_location="cpu")
+            else:
+                model = torch.load(f)
         return model
 
     def _get_best_torch_device(self):
@@ -664,4 +782,5 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
 
     def _get_learning_rate(self):
         for p in self.optimizer.param_groups:
-            return p['lr']
+            return p["lr"]
+

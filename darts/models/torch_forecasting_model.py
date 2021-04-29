@@ -769,8 +769,10 @@ class TorchForecastingModel(GlobalForecastingModel, ABC):
             # handle the case that model was trained on CUDA but loaded on CPU
             if not torch.cuda.is_available():
                 model = torch.load(f, map_location="cpu")
+                model.device = "cpu"
             else:
                 model = torch.load(f)
+
         return model
 
     def _get_best_torch_device(self):
